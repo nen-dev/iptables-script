@@ -158,29 +158,36 @@ done
 # Service Type and services
 case $SERVICE_TYPE in
 standard)
-TCP_SERVICE='8999'
-UDP_SERVICE=''
+TCP_SERVICES=''
+UDP_SERVICES=''
 # REMOTE SERVICES:
 # 80, 443 - web
-# 5222 - JABBER
-# 8010 - JABBER FT
-# 53 - DNS
-REMOTE_TCP_SERVICES='80 443 5222 8010 53 22'
+
+REMOTE_TCP_SERVICES='80 443 53 22'
 REMOTE_UDP_SERVICES='53'
 TORRENTS_LISTEN='8999'
 TORRENTS='52740:56850'
 ;;
 web-server)
-TCP_SERVICE='22 443 80'
+# 80,443 - web
+# 6514 - Secure Syslog
+TCP_SERVICES='80 443'
+# 514 - Syslog
 UDP_SERVICE=''
 REMOTE_TCP_SERVICES='80 443'
 REMOTE_UDP_SERVICES='53'
 ;;
 
 full)
-TCP_SERVICE='22 443 80'
-UDP_SERVICE=''
-REMOTE_TCP_SERVICES='80 443 3306'
+# REMOTE SERVICES:
+# 80, 443 - web
+# 5222 - JABBER
+# 8010 - JABBER FT
+# 53 - DNS
+# 3306 - mysql
+TCP_SERVICES=''
+UDP_SERVICES=''
+REMOTE_TCP_SERVICES='80 443 5222 8010 53 22 3306'
 REMOTE_UDP_SERVICES='53'
 TORRENTS_LISTEN='8999'
 TORRENTS='52740:56850'
@@ -239,7 +246,7 @@ for NETWORK_MGMT in $NETWORKS_MGMT; do
 done
 fi
 
-# OUTPUT
+# REMOTE SERVICES
 if [ -n "$REMOTE_TCP_SERVICES" ]; then
     if [ -n "$USERS" ]; then
     for USER in $USERS; do
@@ -272,6 +279,29 @@ if [ -n "$REMOTE_UDP_SERVICES" ]; then
     fi
 fi
 
+# SERVICES
+if [ -n "$TCP_SERVICES" ]; then
+    for TCP_SERVICE in $TCP_SERVICES; do
+        $IPT -A OUTPUT -p tcp --dport $TCP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
+        $IPT -A INPUT  -p tcp --sport $TCP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+    done
+fi
+
+if [ -n "$REMOTE_UDP_SERVICES" ]; then
+    if [ -n "$USERS" ]; then
+    for USER in $USERS; do
+    for REMOTE_UDP_SERVICE in $REMOTE_UDP_SERVICES; do
+        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
+        $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+    done      
+    done
+    else
+    for REMOTE_UDP_SERVICE in $REMOTE_UDP_SERVICES; do
+        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+        $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+    done    
+    fi
+fi
 
 if [ -n "$TORRENTS" ]; then
     if [ -n "$USERS" ]; then
@@ -347,36 +377,11 @@ if [ -n "$VPN_TYPE" ]; then
     fi
 fi
 
-
-
-#iptables -A INPUT -p 50 -m state --state ESTABLISHED -j ACCEPT
-#iptables -A INPUT -p 51 -m state --state ESTABLISHED -j ACCEPT
-#iptables -A OUTPUT -p 50 -m state --state NEW,ESTABLISHED -j ACCEPT
-#iptables -A OUTPUT -p 51 -m state --state NEW,ESTABLISHED -j ACCEPT
-#    Protocol: UDP, port 500 (for IKE, to manage encryption keys)
-#    Protocol: UDP, port 4500 (for IPSEC NAT-Traversal mode)
- #   Protocol: ESP, value 50 (for IPSEC)
- #   Protocol: AH, value 51 (for IPSEC)
-#Also, Port 1701 is used by the L2TP Server, but connections should not be allowed inbound to it from outside. There is a special firewall rule to #allow only IPSEC secured traffic inbound on this port.
-#
-#If using IPTABLES, and your L2TP server sits directly on the internet, then the rules you need are
 iptables -L -v
 
 /sbin/iptables-save > /etc/iptables.up.rules
 echo '#!/bin/sh
 /sbin/iptables-restore < /etc/iptables.up.rules
-IPT="/sbin/iptables"
-#repositories="security.debian.org deb.debian.org"
-
-#for addr in $repositories;do
-#    ips=$(host $addr | grep "has address" | sed "s/.*.has address //g") 
-#    echo $ips
-#    for ip in $ips; do
-#    echo $ip
-#        $IPT -A OUTPUT -p tcp -d $ip --dport 443 -m owner --uid-owner root -j ACCEPT
-#        $IPT -A OUTPUT -p tcp -d $ip --dport 80 -m owner --uid-owner root -j ACCEPT
-#    done
-#done
 exit 0' > /etc/network/if-pre-up.d/iptables
 chmod +x /etc/network/if-pre-up.d/iptables
 
