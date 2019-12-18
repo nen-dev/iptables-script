@@ -16,8 +16,9 @@ SERVICE_TYPE="standard"
 REGEX_NET='([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/([0-9]{1,2})'
 SSH_PORT='22'
 TORRENTS='52740:56850'
-
+VPN_TYPE=''
 TORRENTS_LISTEN='8999'
+NETWORKS_VPN=''
 # Check iptables permissions
 if [ ! -x $IPT ]; then
     exit 0; echo "You have not permissions to set up iptables"
@@ -27,7 +28,8 @@ while [[ $# > 0 ]];do
 case $1 in
 --help)
  echo " This is script configures iptables
- ! Block ipv6 traffic
+ ! But now only block ipv6 traffic
+ 
  You should use sudo or run as root for using it
 
  Usage:
@@ -46,8 +48,12 @@ case $1 in
                     full - you could specify services in FULL_TCP, FULL_UDP variable
     -u | --users \"user1 user2\"     
                 Specify specific users which could use http/https traffic
+    -v | --vpn [cisco-ipsec] 
+                specify type of vpn client
+                --vnets \"192.168.1.1/32 10.0.0.0/8\"
+                Specify the address for remote vpn server or server group
     -n | --nets \"192.168.1.1/32 10.0.0.0/8\"
-                Specify managment networks for an ssh access
+                Specify managment networks for ssh access
  "
  exit 0
 ;;
@@ -98,6 +104,39 @@ case $1 in
     for NET in $NETWORKS_MGMT; do
         if [[ "$NET" =~ $REGEX_NET ]]; then
         echo "Managment network: $NET"
+    else
+        echo "You should specify correct network address 
+        You use: $NET
+        But should: X.X.X.X/X IP/mask
+        "
+        exit 2
+    fi
+    done        
+    shift
+;;
+-v)
+    VPN_TYPE=$2
+    if [ $VPN_TYPE == "cisco-ipsec" ]; then
+        echo "VPN type of Client: $VPN_TYPE"
+    else
+        echo "You should specify the vpn client type [cisco-ipsec]"
+    fi
+    shift
+;;
+--vpn)
+    VPN_TYPE=$2
+    if [ $VPN_TYPE == "cisco-ipsec" ]; then
+        echo "VPN type of Client: $VPN_TYPE"
+    else
+        echo "You should specify the vpn client type [cisco-ipsec]"
+    fi
+    shift
+;;
+--vnets)
+    NETWORKS_VPN=$2
+    for NET in $NETWORKS_VPN; do
+        if [[ "$NET" =~ $REGEX_NET ]]; then
+        echo "Vpn network: $NET"
     else
         echo "You should specify correct network address 
         You use: $NET
@@ -200,8 +239,6 @@ for NETWORK_MGMT in $NETWORKS_MGMT; do
 done
 fi
 
-$IPT -A OUTPUT -p tcp --dport 22 -m state --state NEW,ESTABLISHED -j ACCEPT
-$IPT -A INPUT  -p tcp --sport 22 -m state --state ESTABLISHED     -j ACCEPT
 # OUTPUT
 if [ -n "$REMOTE_TCP_SERVICES" ]; then
     if [ -n "$USERS" ]; then
@@ -261,7 +298,7 @@ if [ -n "$TORRENTS" ]; then
         $IPT -A OUTPUT -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j ACCEPT
         $IPT -A OUTPUT -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j ACCEPT
     #TORRENTS CONNECTION
-        $IPT -A INPUT -p tcp -m multiport --dports ${TORRENTS}  -m state --state NEW,ESTABLISHED -j ACCEPT
+        $IPT -A INPUT -p tcp -m multiport --dports ${TORRENTS}  D -j ACCEPT
         $IPT -A OUTPUT  -p tcp -m multiport --sports ${TORRENTS} -m state --state ESTABLISHED -j ACCEPT
         $IPT -A INPUT -p udp -m multiport --dports ${TORRENTS}  -m state --state NEW,ESTABLISHED -j ACCEPT
         $IPT -A OUTPUT  -p udp -m multiport --sports ${TORRENTS} -m state --state ESTABLISHED -j ACCEPT 
@@ -269,6 +306,60 @@ if [ -n "$TORRENTS" ]; then
 fi
 
 
+
+# Cisco IPSecVPN
+if [ -n "$VPN_TYPE" ]; then
+    if [ -n "$NETWORKS_VPN" ]; then
+    if [ -n "$USERS" ]; then
+    for USER in $USERS; do
+        for NETWORK_VPN in $NETWORKS_VPN; do
+            iptables -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+            iptables -A INPUT -p udp -d ${NETWORK_VPN} --sport 500 -m state --state ESTABLISHED -j ACCEPT
+            iptables -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 4500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+            iptables -A INPUT -p udp -d ${NETWORK_VPN} --sport 4500 -m state --state ESTABLISHED -j ACCEPT
+        done
+    done    
+    else
+    for NETWORK_VPN in $NETWORKS_VPN; do
+        iptables -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 500 -m state --state NEW,ESTABLISHED -j ACCEPT
+        iptables -A INPUT -p udp -d ${NETWORK_VPN} --sport 500 -m state --state ESTABLISHED -j ACCEPT
+        iptables -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 4500 -m state --state NEW,ESTABLISHED -j ACCEPT
+        iptables -A INPUT -p udp -d ${NETWORK_VPN} --sport 4500 -m state --state ESTABLISHED -j ACCEPT
+    done
+    fi
+    else
+    for USER in $USERS; do
+        for NETWORK_VPN in $NETWORKS_VPN; do
+            iptables -A OUTPUT  -p udp --dport 500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+            iptables -A INPUT -p udp  --sport 500 -m state --state ESTABLISHED -j ACCEPT
+            iptables -A OUTPUT  -p udp  --dport 4500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+            iptables -A INPUT -p udp --sport 4500 -m state --state ESTABLISHED -j ACCEPT
+        done
+    done    
+    else
+    for NETWORK_VPN in $NETWORKS_VPN; do
+        iptables -A OUTPUT  -p udp --dport 500 -m state --state NEW,ESTABLISHED -j ACCEPT
+        iptables -A INPUT -p udp  --sport 500 -m state --state ESTABLISHED -j ACCEPT
+        iptables -A OUTPUT  -p udp  --dport 4500 -m state --state NEW,ESTABLISHED -j ACCEPT
+        iptables -A INPUT -p udp --sport 4500 -m state --state ESTABLISHED -j ACCEPT
+    done
+    fi    
+    fi
+fi
+
+
+
+#iptables -A INPUT -p 50 -m state --state ESTABLISHED -j ACCEPT
+#iptables -A INPUT -p 51 -m state --state ESTABLISHED -j ACCEPT
+#iptables -A OUTPUT -p 50 -m state --state NEW,ESTABLISHED -j ACCEPT
+#iptables -A OUTPUT -p 51 -m state --state NEW,ESTABLISHED -j ACCEPT
+#    Protocol: UDP, port 500 (for IKE, to manage encryption keys)
+#    Protocol: UDP, port 4500 (for IPSEC NAT-Traversal mode)
+ #   Protocol: ESP, value 50 (for IPSEC)
+ #   Protocol: AH, value 51 (for IPSEC)
+#Also, Port 1701 is used by the L2TP Server, but connections should not be allowed inbound to it from outside. There is a special firewall rule to #allow only IPSEC secured traffic inbound on this port.
+#
+#If using IPTABLES, and your L2TP server sits directly on the internet, then the rules you need are
 iptables -L -v
 
 /sbin/iptables-save > /etc/iptables.up.rules
