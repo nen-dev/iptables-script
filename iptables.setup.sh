@@ -428,7 +428,7 @@ chmod +x /etc/network/if-pre-up.d/iptables6
 
 
 /etc/init.d/networking restart
-/etc/init.d/network-manager restart
+#/etc/init.d/network-manager restart
 
 echo -e "
 Set up outgoing(Min/Max) ports 
