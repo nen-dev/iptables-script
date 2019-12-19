@@ -10,14 +10,14 @@ IPT6="/sbin/ip6tables"
 HOSTTYPE=""
 TCP_SERVICES=""
 UDP_SERVICES=""
-REMOTE_TCP_SERVICES='80 443 22'
-REMOTE_UDP_SERVICES='53'
-SERVICE_TYPE="standard"
+REMOTE_TCP_SERVICES=''
+REMOTE_UDP_SERVICES=''
+SERVICE_TYPE=""
 REGEX_NET='([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/([0-9]{1,2})'
-SSH_PORT='22'
-TORRENTS='52740:56850'
+SSH_PORT=''
+TORRENTS=''
 VPN_TYPE=''
-TORRENTS_LISTEN='8999'
+TORRENTS_LISTEN=''
 NETWORKS_VPN=''
 # Check iptables permissions
 if [ ! -x $IPT ]; then
@@ -47,7 +47,7 @@ case $1 in
                     web-server - allow http/https
                     full - you could specify services in FULL_TCP, FULL_UDP variable
     -u | --users \"user1 user2\"     
-                Specify specific users which could use http/https traffic
+                Specify specific users which could use http/https traffic        
     -v | --vpn [cisco-ipsec] 
                 specify type of vpn client
                 --vnets \"192.168.1.1/32 10.0.0.0/8\"
@@ -169,16 +169,22 @@ TORRENTS_LISTEN='8999'
 TORRENTS='52740:56850'
 ;;
 web-server)
+SSH_PORT='22'
 # 80,443 - web
 # 6514 - Secure Syslog
-TCP_SERVICES='80 443'
+# 10051 - Zabbix
+
+TCP_SERVICES='80 443 10051 6514'
 # 514 - Syslog
-UDP_SERVICE=''
-REMOTE_TCP_SERVICES='80 443'
+# 161 SNMP
+# 162 SNMP Traps
+UDP_SERVICE='514 161 162'
+REMOTE_TCP_SERVICES='80 443 514'
 REMOTE_UDP_SERVICES='53'
 ;;
 
 full)
+SSH_PORT='22'
 # REMOTE SERVICES:
 # 80, 443 - web
 # 5222 - JABBER
@@ -358,6 +364,7 @@ if [ -n "$VPN_TYPE" ]; then
     done
     fi
     else
+    if [ -n "$USERS" ]; then
     for USER in $USERS; do
         for NETWORK_VPN in $NETWORKS_VPN; do
             iptables -A OUTPUT  -p udp --dport 500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
@@ -374,8 +381,9 @@ if [ -n "$VPN_TYPE" ]; then
         iptables -A INPUT -p udp --sport 4500 -m state --state ESTABLISHED -j ACCEPT
     done
     fi    
-    fi
 fi
+fi
+
 
 iptables -L -v
 
