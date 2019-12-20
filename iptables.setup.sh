@@ -344,43 +344,43 @@ if [ -n "$VPN_TYPE" ]; then
     if [ -n "$USERS" ]; then
     for USER in $USERS; do
         for NETWORK_VPN in $NETWORKS_VPN; do
-            iptables -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
-            iptables -A INPUT -p udp -d ${NETWORK_VPN} --sport 500 -m state --state ESTABLISHED -j ACCEPT
-            iptables -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 4500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
-            iptables -A INPUT -p udp -d ${NETWORK_VPN} --sport 4500 -m state --state ESTABLISHED -j ACCEPT
+            $IPT -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+            $IPT -A INPUT -p udp -d ${NETWORK_VPN} --sport 500 -m state --state ESTABLISHED -j ACCEPT
+            $IPT -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 4500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+            $IPT -A INPUT -p udp -d ${NETWORK_VPN} --sport 4500 -m state --state ESTABLISHED -j ACCEPT
         done
     done    
     else
     for NETWORK_VPN in $NETWORKS_VPN; do
-        iptables -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 500 -m state --state NEW,ESTABLISHED -j ACCEPT
-        iptables -A INPUT -p udp -d ${NETWORK_VPN} --sport 500 -m state --state ESTABLISHED -j ACCEPT
-        iptables -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 4500 -m state --state NEW,ESTABLISHED -j ACCEPT
-        iptables -A INPUT -p udp -d ${NETWORK_VPN} --sport 4500 -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 500 -m state --state NEW,ESTABLISHED -j ACCEPT
+        $IPT -A INPUT -p udp -d ${NETWORK_VPN} --sport 500 -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A OUTPUT  -p udp -d ${NETWORK_VPN} --dport 4500 -m state --state NEW,ESTABLISHED -j ACCEPT
+        $IPT -A INPUT -p udp -d ${NETWORK_VPN} --sport 4500 -m state --state ESTABLISHED -j ACCEPT
     done
     fi
     else
     if [ -n "$USERS" ]; then
     for USER in $USERS; do
         for NETWORK_VPN in $NETWORKS_VPN; do
-            iptables -A OUTPUT  -p udp --dport 500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
-            iptables -A INPUT -p udp  --sport 500 -m state --state ESTABLISHED -j ACCEPT
-            iptables -A OUTPUT  -p udp  --dport 4500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
-            iptables -A INPUT -p udp --sport 4500 -m state --state ESTABLISHED -j ACCEPT
+            $IPT -A OUTPUT  -p udp --dport 500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+            $IPT -A INPUT -p udp  --sport 500 -m state --state ESTABLISHED -j ACCEPT
+            $IPT -A OUTPUT  -p udp  --dport 4500 -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+            $IPT -A INPUT -p udp --sport 4500 -m state --state ESTABLISHED -j ACCEPT
         done
     done    
     else
     for NETWORK_VPN in $NETWORKS_VPN; do
-        iptables -A OUTPUT  -p udp --dport 500 -m state --state NEW,ESTABLISHED -j ACCEPT
-        iptables -A INPUT -p udp  --sport 500 -m state --state ESTABLISHED -j ACCEPT
-        iptables -A OUTPUT  -p udp  --dport 4500 -m state --state NEW,ESTABLISHED -j ACCEPT
-        iptables -A INPUT -p udp --sport 4500 -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A OUTPUT  -p udp --dport 500 -m state --state NEW,ESTABLISHED -j ACCEPT
+        $IPT -A INPUT -p udp  --sport 500 -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A OUTPUT  -p udp  --dport 4500 -m state --state NEW,ESTABLISHED -j ACCEPT
+        $IPT -A INPUT -p udp --sport 4500 -m state --state ESTABLISHED -j ACCEPT
     done
     fi    
 fi
 fi
 
 
-iptables -L -v
+$IPT -L -v
 
 /sbin/iptables-save > /etc/iptables.up.rules
 echo '#!/bin/sh
@@ -390,31 +390,31 @@ chmod +x /etc/network/if-pre-up.d/iptables
 
 
 # start with a clean slate
-ip6tables -F
-ip6tables -X
+$IPT6 -F
+$IPT6 -X
 
-ip6tables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-ip6tables -A INPUT -m conntrack --ctstate INVALID -j DROP
+$IPT6 -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+$IPT6 -A INPUT -m conntrack --ctstate INVALID -j DROP
 # allow icmpv6
-ip6tables -I INPUT -p ipv6-icmp -j ACCEPT
-ip6tables -I OUTPUT -p ipv6-icmp -j ACCEPT
+$IPT6 -I INPUT -p ipv6-icmp -j ACCEPT
+$IPT6 -I OUTPUT -p ipv6-icmp -j ACCEPT
 
 
 # allow loopback
-ip6tables -A INPUT -i lo -j ACCEPT
-ip6tables -A OUTPUT -o lo -j ACCEPT
+$IPT6 -A INPUT -i lo -j ACCEPT
+$IPT6 -A OUTPUT -o lo -j ACCEPT
 
 # drop packets with a type 0 routing header
-ip6tables -A INPUT -m rt --rt-type 0 -j DROP
-ip6tables -A OUTPUT -m rt --rt-type 0 -j DROP
+$IPT6 -A INPUT -m rt --rt-type 0 -j DROP
+$IPT6 -A OUTPUT -m rt --rt-type 0 -j DROP
 
 # default policy...
-ip6tables -P INPUT DROP
-ip6tables -P FORWARD DROP
-ip6tables -P OUTPUT DROP
+$IPT6 -P INPUT DROP
+$IPT6 -P FORWARD DROP
+$IPT6 -P OUTPUT DROP
 
 
-ip6tables-save > /etc/ip6tables.up.rules
+/sbin/ip6tables-save > /etc/ip6tables.up.rules
 echo '#!/bin/sh
 /sbin/ip6tables-restore < /etc/ip6tables.up.rules
 exit 0' > /etc/network/if-pre-up.d/iptables6
