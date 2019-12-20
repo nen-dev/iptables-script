@@ -21,8 +21,12 @@ TORRENTS_LISTEN=''
 NETWORKS_VPN=''
 # Check iptables permissions
 if [ ! -x $IPT ]; then
-    exit 0; echo "You have not permissions to set up iptables"
+    echo "You have not permissions to set up iptables";exit 0;
 fi
+if [[ $# == 0 ]];then
+    echo "Try iptables.setup.sh --help for more information"; exit 0;
+fi
+
 
 while [[ $# > 0 ]];do
 case $1 in
@@ -171,16 +175,15 @@ TORRENTS='52740:56850'
 web-server)
 SSH_PORT='22'
 # 80,443 - web
-# 6514 - Secure Syslog
-# 10051 - Zabbix
-
-TCP_SERVICES='80 443 10051 6514'
+TCP_SERVICES='80 443'
 # 514 - Syslog
 # 161 SNMP
 # 162 SNMP Traps
-UDP_SERVICE='514 161 162'
-REMOTE_TCP_SERVICES='80 443 514'
-REMOTE_UDP_SERVICES='53'
+# 6514 - Secure Syslog
+# 10051 - Zabbix
+UDP_SERVICE='162'
+REMOTE_TCP_SERVICES='80 443 514 53 10051 6514'
+REMOTE_UDP_SERVICES='53 514 161'
 ;;
 
 full)
@@ -288,26 +291,18 @@ fi
 # SERVICES
 if [ -n "$TCP_SERVICES" ]; then
     for TCP_SERVICE in $TCP_SERVICES; do
-        $IPT -A OUTPUT -p tcp --dport $TCP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
-        $IPT -A INPUT  -p tcp --sport $TCP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A OUTPUT -p tcp --sport $TCP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A INPUT  -p tcp --dport $TCP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
+    done
+fi
+if [ -n "$UDP_SERVICES" ]; then
+    for UDP_SERVICE in $UDP_SERVICES; do
+        $IPT -A OUTPUT -p tcp --sport $UDP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A INPUT  -p tcp --dport $UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
     done
 fi
 
-if [ -n "$REMOTE_UDP_SERVICES" ]; then
-    if [ -n "$USERS" ]; then
-    for USER in $USERS; do
-    for REMOTE_UDP_SERVICE in $REMOTE_UDP_SERVICES; do
-        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
-        $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE -m state --state ESTABLISHED -j ACCEPT
-    done      
-    done
-    else
-    for REMOTE_UDP_SERVICE in $REMOTE_UDP_SERVICES; do
-        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
-        $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE -m state --state ESTABLISHED -j ACCEPT
-    done    
-    fi
-fi
+
 
 if [ -n "$TORRENTS" ]; then
     if [ -n "$USERS" ]; then
@@ -428,7 +423,7 @@ chmod +x /etc/network/if-pre-up.d/iptables6
 
 
 /etc/init.d/networking restart
-#/etc/init.d/network-manager restart
+/etc/init.d/network-manager restart
 
 echo -e "
 Set up outgoing(Min/Max) ports 
