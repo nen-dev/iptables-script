@@ -245,11 +245,21 @@ $IPT -A OUTPUT -p tcp  --dport 443 -m state --state NEW,ESTABLISHED -m owner --u
 $IPT -A INPUT  -p tcp  --sport 80 -m state --state ESTABLISHED     -j ACCEPT
 $IPT -A INPUT  -p tcp  --sport 443 -m state --state ESTABLISHED     -j ACCEPT
 
+
+# ICMP 
+$IPT -A INPUT -p ICMP --icmp-type 8 -j LOG --log-prefix "PING: " # ECHO-REQUEST
+$IPT -A INPUT -p ICMP --icmp-type 8 -j ACCEPT # ECHO-REQUEST
+$IPT -A OUTPUT -p icmp --icmp-type 0 -j ACCEPT # ECHO-REPLY
+$IPT -A INPUT -p icmp --icmp-type 3 -j ACCEPT # DESTINATION UNREACHABLE
+$IPT -A INPUT -p icmp --icmp-type 11 -j ACCEPT #  TTL EXCEEDED
+$IPT -A INPUT -p icmp --icmp-type 12 -j ACCEPT # BAD IP HEADER
+$IPT -A OUTPUT -p ICMP --icmp-type 8 -j ACCEPT
+
 # SSH REMOTE MANAGMENT
 if [ -n "$NETWORKS_MGMT" ]; then
 for NETWORK_MGMT in $NETWORKS_MGMT; do
-    $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
     $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'SSH: ' 
+    $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
     $IPT -A OUTPUT -p tcp --src ${NETWORK_MGMT} --sport ${SSH_PORT} -m conntrack --ctstate ESTABLISHED -j ACCEPT
 
 done
@@ -308,10 +318,10 @@ if [ -n "$TORRENTS" ]; then
     if [ -n "$USERS" ]; then
     #TORRENTS LISTEN
     # TORRENTS
-        $IPT -A INPUT  -p tcp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
         $IPT -A INPUT  -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '
-        $IPT -A INPUT  -p udp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A INPUT  -p tcp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
         $IPT -A INPUT  -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '
+        $IPT -A INPUT  -p udp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
         $IPT -A OUTPUT -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
         $IPT -A OUTPUT -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
     #TORRENTS CONNECTION
@@ -322,10 +332,10 @@ if [ -n "$TORRENTS" ]; then
     else
     #TORRENTS LISTEN
     # TORRENTS
+        $IPT -A INPUT  -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '   
         $IPT -A INPUT  -p tcp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
-        $IPT -A INPUT  -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '
+        $IPT -A INPUT  -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '      
         $IPT -A INPUT  -p udp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
-        $IPT -A INPUT  -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '
         $IPT -A OUTPUT -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j ACCEPT
         $IPT -A OUTPUT -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j ACCEPT
     #TORRENTS CONNECTION
