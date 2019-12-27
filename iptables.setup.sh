@@ -254,14 +254,13 @@ $IPT -A INPUT -p icmp --icmp-type 3 -j ACCEPT # DESTINATION UNREACHABLE
 $IPT -A INPUT -p icmp --icmp-type 11 -j ACCEPT #  TTL EXCEEDED
 $IPT -A INPUT -p icmp --icmp-type 12 -j ACCEPT # BAD IP HEADER
 $IPT -A OUTPUT -p ICMP --icmp-type 8 -j ACCEPT
-
+$IPT -A INPUT -p ICMP --icmp-type 0 -j ACCEPT
 # SSH REMOTE MANAGMENT
 if [ -n "$NETWORKS_MGMT" ]; then
 for NETWORK_MGMT in $NETWORKS_MGMT; do
     $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'SSH: ' 
     $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
     $IPT -A OUTPUT -p tcp --src ${NETWORK_MGMT} --sport ${SSH_PORT} -m conntrack --ctstate ESTABLISHED -j ACCEPT
-
 done
 fi
 
@@ -271,13 +270,13 @@ if [ -n "$REMOTE_TCP_SERVICES" ]; then
     for USER in $USERS; do
     for REMOTE_TCP_SERVICE in $REMOTE_TCP_SERVICES; do
         $IPT -A OUTPUT -p tcp --dport $REMOTE_TCP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
-        $IPT -A INPUT  -p tcp --sport $REMOTE_TCP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A INPUT  -p tcp --sport $REMOTE_TCP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
     done 
     done
     else
     for REMOTE_TCP_SERVICE in $REMOTE_TCP_SERVICES; do
-        $IPT -A OUTPUT -p tcp --dport $REMOTE_TCP_SERVICE -m state --state NEW,ESTABLISHED  -m owner --uid-owner $USER  -j ACCEPT
-        $IPT -A INPUT  -p tcp --sport $REMOTE_TCP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A OUTPUT -p tcp --dport $REMOTE_TCP_SERVICE -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER  -j ACCEPT
+        $IPT -A INPUT  -p tcp --sport  $REMOTE_TCP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
         
     done 
     fi
@@ -286,14 +285,14 @@ if [ -n "$REMOTE_UDP_SERVICES" ]; then
     if [ -n "$USERS" ]; then
     for USER in $USERS; do
     for REMOTE_UDP_SERVICE in $REMOTE_UDP_SERVICES; do
-        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
-        $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT        
     done      
     done
     else
     for REMOTE_UDP_SERVICE in $REMOTE_UDP_SERVICES; do
+        $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
         $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
-        $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE -m state --state ESTABLISHED -j ACCEPT
     done    
     fi
 fi
