@@ -362,13 +362,13 @@ if [ -n "$NETWORKS_MGMT" ]; then
             if [ -n "$ADMIN_REMOTE_TCP_SERVICES" ]; then
                 for REMOTE_TCP_SERVICE in $ADMIN_REMOTE_TCP_SERVICES; do
                     $IPT -A OUTPUT -p tcp --dport $REMOTE_TCP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
-                    $IPT -A INPUT  -p tcp --sport $REMOTE_TCP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
+                    $IPT -A INPUT  -p tcp --src ${NETWORK_MGMT} --sport $REMOTE_TCP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
                 done 
             fi
             if [ -n "$ADMIN__REMOTE_UDP_SERVICES" ]; then
                 for REMOTE_UDP_SERVICE in $ADMIN__REMOTE_UDP_SERVICES; do
-                    $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
-                    $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT        
+                    $IPT -A INPUT  -p udp --src ${NETWORK_MGMT} --sport $REMOTE_UDP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
+                    $IPT -A OUTPUT -p udp  --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT        
                 done      
             fi
         done
