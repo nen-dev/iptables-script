@@ -336,12 +336,7 @@ $IPT -A INPUT -p icmp --icmp-type 11 -j ACCEPT #  TTL EXCEEDED
 $IPT -A INPUT -p icmp --icmp-type 12 -j ACCEPT # BAD IP HEADER
 $IPT -A OUTPUT -p ICMP --icmp-type 8 -j ACCEPT
 $IPT -A INPUT -p ICMP --icmp-type 0 -j ACCEPT
-# SSH REMOTE MANAGEMENT
-    if [ $HOSTTYPE == "home-pc" ] || [ $HOSTTYPE == "server" ]; then
-        echo "Host type is $HOSTTYPE"         
-    else
-        echo "You should specify the host-type: home-pc or server"
-    fi
+
 
 
 if [ -n "$NETWORKS_MGMT" ]; then
@@ -552,9 +547,14 @@ exit 0' > /etc/network/if-pre-up.d/iptables6
 chmod +x /etc/network/if-pre-up.d/iptables6
 
 
+if [ $HOSTTYPE == "home-pc" ]; then
+    /etc/init.d/networking restart
+    /etc/init.d/network-manager restart     
+else
+    /etc/init.d/networking restart
+fi
 
-/etc/init.d/networking restart
-/etc/init.d/network-manager restart
+
 
 echo -e "
 Set up outgoing(Min/Max) ports 
