@@ -19,6 +19,11 @@ TORRENTS=''
 VPN_TYPE=''
 TORRENTS_LISTEN=''
 NETWORKS_VPN=''
+NETWORKS_MGMT=''
+ADMIN_TCP_SERVICES=''
+ADMIN_UDP_SERVICES=''
+ADMIN_REMOTE_TCP_SERVICES=''
+ADMIN__REMOTE_UDP_SERVICES=''
 # Check iptables permissions
 if [ ! -x $IPT ]; then
     echo "You have not permissions to set up iptables";exit 0;
@@ -50,6 +55,7 @@ case $1 in
                     standard - dns, icmp,
                     web-server - allow http/https
                     full - you could specify services in FULL_TCP, FULL_UDP variable
+                    monitoring - zabbix, ssh, snmp, icmp
     -u | --users \"user1 user2\"     
                 Specify specific users which could use http/https traffic        
     -v | --vpn [cisco-ipsec] 
@@ -65,7 +71,7 @@ case $1 in
 -h|--host-type)
     HOSTTYPE=$2
     if [ $HOSTTYPE == "home-pc" ] || [ $HOSTTYPE == "server" ]; then
-        echo "Host type is $HOSTTYPE"
+        echo "Host type is $HOSTTYPE"         
     else
         echo "You should specify the host-type: home-pc or server"
     fi
@@ -159,6 +165,15 @@ esac
 shift
 done
 
+case $HOSTTYPE in
+server)
+    if [ -z "$NETWORKS_MGMT" ]; then
+        echo "You should specify management network"
+        exit 2      
+;;
+esac
+
+
 # Service Type and services
 case $SERVICE_TYPE in
 standard)
@@ -174,18 +189,76 @@ TORRENTS='52740:56850'
 ;;
 web-server)
 SSH_PORT='22'
+
+# ADMIN_TCP_SERVICES
+# 10050 - Zabbix Agent
+# 10161 req SNMP TLS
+ADMIN_TCP_SERVICES='10161 10050'
+# ADMIN_UDP_SERVICES
+# 161 SNMP
+ADMIN_UDP_SERVICES='161'
+# ADMIN_REMOTE_TCP_SERVICES
+# 10051 - Zabbix Server
+# 10162 trap SNMP TLS
+ADMIN_REMOTE_TCP_SERVICES='10051 10162'
+# ADMIN__REMOTE_UDP_SERVICES
+# 162 SNMP Traps
+ADMIN__REMOTE_UDP_SERVICES='162'
+# TCP_SERVICES
 # 80,443 - web
 TCP_SERVICES='80 443'
-# 514 - Syslog
-# 161 SNMP
-# 162 SNMP Traps
+# UDP_SERVICE
+UDP_SERVICE=''
+# REMOTE_TCP_SERVICES
 # 6514 - Secure Syslog
-# 10051 - Zabbix
-UDP_SERVICE='162'
+# 3306 - mysql
+# 53 - DNS
+# 389 - LDAP
+# 636 - LDAPS
 REMOTE_TCP_SERVICES='80 443 514 53 10051 6514'
+# REMOTE_UDP_SERVICES
+# 514 - Syslog
+REMOTE_UDP_SERVICES='53 514'
+
+;;
+monitoring)
+SSH_PORT='22'
+# ADMIN_TCP_SERVICES
+# 80,443 - web
+# 10050 - Zabbix Agent
+# 10161 req SNMP TLS
+ADMIN_TCP_SERVICES='80 443 10161 10050'
+# ADMIN_UDP_SERVICES
+# 161 SNMP
+ADMIN_UDP_SERVICES='161'
+# ADMIN_REMOTE_TCP_SERVICES
+# 10051 - Zabbix Server
+# 10162 trap SNMP TLS
+ADMIN_REMOTE_TCP_SERVICES='10051 10162'
+# ADMIN__REMOTE_UDP_SERVICES
+# 162 SNMP Traps
+ADMIN__REMOTE_UDP_SERVICES='162'
+# TCP_SERVICES
+# iperf 5001:5040
+# 10051 - Zabbix Server
+# 10162 trap SNMP TLS
+TCP_SERVICES='10051 10162 5001:5040'
+# UDP_SERVICE
+# iperf 5001:5040
+# 162 SNMP Traps
+UDP_SERVICE='162 5001:5040'
+# REMOTE_TCP_SERVICES
+# 6514 - Secure Syslog
+# 3306 - mysql
+# 53 - DNS
+# 389 - LDAP
+# 636 - LDAPS
+REMOTE_TCP_SERVICES='53 389 636 6514 3306' 
+# REMOTE_UDP_SERVICES
+# 514 - Syslog
+# 161 - SNMP
 REMOTE_UDP_SERVICES='53 514 161'
 ;;
-
 full)
 SSH_PORT='22'
 # REMOTE SERVICES:
@@ -197,10 +270,14 @@ SSH_PORT='22'
 # 389 - LDAP
 # 636 - LDAPS
 # 8002 - icecast
+# 10050 - zabbix
 TCP_SERVICES=''
 UDP_SERVICES=''
-REMOTE_TCP_SERVICES='80 443 5222 8010 53 22 3306 389 636 8002'
-REMOTE_UDP_SERVICES='53'
+REMOTE_TCP_SERVICES='80 443 5222 8010 53 22 3306 389 636 8002 10051 '
+# 53 - DNS
+# 161 SNMP
+# 162 SNMP Traps
+REMOTE_UDP_SERVICES='53 161 162'
 TORRENTS_LISTEN='8999'
 TORRENTS='52740:56850'
 
@@ -258,13 +335,54 @@ $IPT -A INPUT -p icmp --icmp-type 11 -j ACCEPT #  TTL EXCEEDED
 $IPT -A INPUT -p icmp --icmp-type 12 -j ACCEPT # BAD IP HEADER
 $IPT -A OUTPUT -p ICMP --icmp-type 8 -j ACCEPT
 $IPT -A INPUT -p ICMP --icmp-type 0 -j ACCEPT
-# SSH REMOTE MANAGMENT
+# SSH REMOTE MANAGEMENT
+    if [ $HOSTTYPE == "home-pc" ] || [ $HOSTTYPE == "server" ]; then
+        echo "Host type is $HOSTTYPE"         
+    else
+        echo "You should specify the host-type: home-pc or server"
+    fi
+
+
 if [ -n "$NETWORKS_MGMT" ]; then
-for NETWORK_MGMT in $NETWORKS_MGMT; do
-    $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'SSH: ' 
-    $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
-    $IPT -A OUTPUT -p tcp --src ${NETWORK_MGMT} --sport ${SSH_PORT} -m conntrack --ctstate ESTABLISHED -j ACCEPT
-done
+    if [ $HOSTTYPE == "server" ]; then
+        for NETWORK_MGMT in $NETWORKS_MGMT; do
+            $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'SSH: ' 
+            $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+            $IPT -A OUTPUT -p tcp --src ${NETWORK_MGMT} --sport ${SSH_PORT} -m conntrack --ctstate ESTABLISHED -j ACCEPT
+            # ADMIN SERVICES
+            if [ -n "$ADMIN_TCP_SERVICES" ]; then
+                for TCP_SERVICE in $ADMIN_TCP_SERVICES; do
+                    $IPT -A OUTPUT -p tcp --sport $TCP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+                    $IPT -A INPUT  -p tcp --src ${NETWORK_MGMT} --dport $TCP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
+                done
+            fi
+            if [ -n "$ADMIN_UDP_SERVICES" ]; then
+                for UDP_SERVICE in $ADMIN_UDP_SERVICES; do
+                    $IPT -A OUTPUT -p tcp --sport $UDP_SERVICE -m state --state ESTABLISHED -j ACCEPT
+                    $IPT -A INPUT  -p tcp --src ${NETWORK_MGMT} --dport $UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
+                done
+            fi        
+            # REMOTE ADMIN SERVICES
+            if [ -n "$ADMIN_REMOTE_TCP_SERVICES" ]; then
+                for REMOTE_TCP_SERVICE in $ADMIN_REMOTE_TCP_SERVICES; do
+                    $IPT -A OUTPUT -p tcp --dport $REMOTE_TCP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
+                    $IPT -A INPUT  -p tcp --sport $REMOTE_TCP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
+                done 
+            fi
+            if [ -n "$ADMIN__REMOTE_UDP_SERVICES" ]; then
+                for REMOTE_UDP_SERVICE in $ADMIN__REMOTE_UDP_SERVICES; do
+                    $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
+                    $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT        
+                done      
+            fi
+        done
+    else
+        for NETWORK_MGMT in $NETWORKS_MGMT; do
+            $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'SSH: ' 
+            $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
+            $IPT -A OUTPUT -p tcp --src ${NETWORK_MGMT} --sport ${SSH_PORT} -m conntrack --ctstate ESTABLISHED -j ACCEPT
+        done    
+    fi
 fi
 
 # REMOTE SERVICES
