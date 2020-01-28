@@ -386,15 +386,14 @@ if [ -n "$REMOTE_TCP_SERVICES" ]; then
     if [ -n "$USERS" ]; then
     for USER in $USERS; do
     for REMOTE_TCP_SERVICE in $REMOTE_TCP_SERVICES; do
-        $IPT -A OUTPUT -p tcp --dport $REMOTE_TCP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
-        $IPT -A INPUT  -p tcp --sport $REMOTE_TCP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
+        $IPT -A OUTPUT -p tcp --dport $REMOTE_TCP_SERVICE -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER  -j ACCEPT
+        $IPT -A INPUT  -p tcp --sport  $REMOTE_TCP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
     done 
     done
     else
     for REMOTE_TCP_SERVICE in $REMOTE_TCP_SERVICES; do
-        $IPT -A OUTPUT -p tcp --dport $REMOTE_TCP_SERVICE -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER  -j ACCEPT
-        $IPT -A INPUT  -p tcp --sport  $REMOTE_TCP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
-        
+        $IPT -A OUTPUT -p tcp --dport $REMOTE_TCP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT
+        $IPT -A INPUT  -p tcp --sport $REMOTE_TCP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
     done 
     fi
 fi
@@ -403,13 +402,13 @@ if [ -n "$REMOTE_UDP_SERVICES" ]; then
     for USER in $USERS; do
     for REMOTE_UDP_SERVICE in $REMOTE_UDP_SERVICES; do
         $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
-        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT        
+        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
     done      
     done
     else
     for REMOTE_UDP_SERVICE in $REMOTE_UDP_SERVICES; do
         $IPT -A INPUT  -p udp --sport $REMOTE_UDP_SERVICE --dport 1024:65535 -m state --state ESTABLISHED -j ACCEPT
-        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
+        $IPT -A OUTPUT -p udp --dport $REMOTE_UDP_SERVICE -m state --state NEW,ESTABLISHED -j ACCEPT  
     done    
     fi
 fi
