@@ -51,7 +51,7 @@ case $1 in
                      home-pc - block all input traffic, block output traffic
                      -p options could specify services set, which enable some output traffic
                      -u allow only http/https traffic from specific users
-    -p | --ports [ standard | web-server | full ]
+    -p | --ports [ standard | web-server | full | monitoring ]
                     standard - dns, icmp,
                     web-server - allow http/https
                     full - you could specify services in FULL_TCP, FULL_UDP variable
@@ -169,7 +169,8 @@ case $HOSTTYPE in
 server)
     if [ -z "$NETWORKS_MGMT" ]; then
         echo "You should specify management network"
-        exit 2      
+        exit 2 
+    fi
 ;;
 esac
 
