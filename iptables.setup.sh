@@ -343,7 +343,7 @@ $IPT -A INPUT -p ICMP --icmp-type 0 -j ACCEPT
 if [ -n "$NETWORKS_MGMT" ]; then
     if [ $HOSTTYPE == "server" ]; then
         for NETWORK_MGMT in $NETWORKS_MGMT; do
-            $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'SSH: ' 
+            $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j LOG -m limit --limit 2/hour --log-level 4 --log-prefix 'SSH: ' 
             $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
             $IPT -A OUTPUT -p tcp --src ${NETWORK_MGMT} --sport ${SSH_PORT} -m conntrack --ctstate ESTABLISHED -j ACCEPT
             # ADMIN SERVICES
@@ -375,7 +375,7 @@ if [ -n "$NETWORKS_MGMT" ]; then
         done
     else
         for NETWORK_MGMT in $NETWORKS_MGMT; do
-            $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'SSH: ' 
+            $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j LOG -m limit --limit 2/hour --log-level 4 --log-prefix 'SSH: ' 
             $IPT -A INPUT -p tcp --src ${NETWORK_MGMT} --dport ${SSH_PORT} -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT
             $IPT -A OUTPUT -p tcp --src ${NETWORK_MGMT} --sport ${SSH_PORT} -m conntrack --ctstate ESTABLISHED -j ACCEPT
         done    
@@ -434,9 +434,9 @@ if [ -n "$TORRENTS" ]; then
     if [ -n "$USERS" ]; then
     #TORRENTS LISTEN
     # TORRENTS
-        $IPT -A INPUT  -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '
+        $IPT -A INPUT  -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG -m limit --limit 2/hour --log-level 4 --log-prefix 'TORRENTS: '
         $IPT -A INPUT  -p tcp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
-        $IPT -A INPUT  -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '
+        $IPT -A INPUT  -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG -m limit --limit 2/hour --log-level 4 --log-prefix 'TORRENTS: '
         $IPT -A INPUT  -p udp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
         $IPT -A OUTPUT -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
         $IPT -A OUTPUT -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -m owner --uid-owner $USER -j ACCEPT
@@ -448,9 +448,9 @@ if [ -n "$TORRENTS" ]; then
     else
     #TORRENTS LISTEN
     # TORRENTS
-        $IPT -A INPUT  -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '   
+        $IPT -A INPUT  -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG -m limit --limit 2/hour --log-level 4 --log-prefix 'TORRENTS: '   
         $IPT -A INPUT  -p tcp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
-        $IPT -A INPUT  -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG  --log-level 4 --log-prefix 'TORRENTS: '      
+        $IPT -A INPUT  -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j LOG -m limit --limit 2/hour --log-level 4 --log-prefix 'TORRENTS: '      
         $IPT -A INPUT  -p udp --dport ${TORRENTS_LISTEN} -m state --state ESTABLISHED -j ACCEPT
         $IPT -A OUTPUT -p tcp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j ACCEPT
         $IPT -A OUTPUT -p udp --sport ${TORRENTS_LISTEN} -m state --state NEW,ESTABLISHED -j ACCEPT
