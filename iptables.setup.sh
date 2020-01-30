@@ -5,6 +5,12 @@
 #  - home-pc
 #  - server-pc
 # DRAFT
+#
+############################################3
+# DEFAULT VALUE
+# Do not change this variables
+# You can use it to find them in this script
+#
 IPT="/sbin/iptables"
 IPT6="/sbin/ip6tables"
 HOSTTYPE=""
@@ -24,6 +30,8 @@ ADMIN_TCP_SERVICES=''
 ADMIN_UDP_SERVICES=''
 ADMIN_REMOTE_TCP_SERVICES=''
 ADMIN__REMOTE_UDP_SERVICES=''
+
+##############################
 # Check iptables permissions
 if [ ! -x $IPT ]; then
     echo "You have not permissions to set up iptables";exit 0;
@@ -32,7 +40,8 @@ if [[ $# == 0 ]];then
     echo "Try iptables.setup.sh --help for more information"; exit 0;
 fi
 
-
+#################################
+# Check script arguments
 while [[ $# > 0 ]];do
 case $1 in
 --help)
@@ -79,10 +88,10 @@ case $1 in
 ;;
 -p|--ports)
     SERVICE_TYPE=$2
-    if [ $SERVICE_TYPE == "standard" ] || [ $SERVICE_TYPE == "web-server" ] || [ $SERVICE_TYPE == "full" ]; then
+    if [ $SERVICE_TYPE == "standard" ] || [ $SERVICE_TYPE == "web-server" ] || [ $SERVICE_TYPE == "full" ] || [ $SERVICE_TYPE == "monitoring" ]; then
         echo "Service type is $SERVICE_TYPE"
     else
-        echo "You should specify the ports [ standard | web-server | full ]"
+        echo "You should specify the ports [ standard | web-server | monitoring | full ]"
     fi
     shift
 ;;
@@ -174,23 +183,26 @@ server)
 ;;
 esac
 
-
-# Service Type and services
+##################################################
+# Service Type and services(ports)
 case $SERVICE_TYPE in
 standard)
+##############
 TCP_SERVICES=''
 UDP_SERVICES=''
 # REMOTE SERVICES:
 # 80, 443 - web
-
+# 53 - DNS
+# 22 - ssh
 REMOTE_TCP_SERVICES='80 443 53 22'
 REMOTE_UDP_SERVICES='53'
+# qbittorrent
 TORRENTS_LISTEN='8999'
 TORRENTS='52740:56850'
 ;;
+##############
 web-server)
 SSH_PORT='22'
-
 # ADMIN_TCP_SERVICES
 # 10050 - Zabbix Agent
 # 10161 req SNMP TLS
@@ -220,18 +232,19 @@ REMOTE_TCP_SERVICES='80 443 514 53 10051 6514'
 # REMOTE_UDP_SERVICES
 # 514 - Syslog
 REMOTE_UDP_SERVICES='53 514'
-
 ;;
+#################
 monitoring)
 SSH_PORT='22'
 # ADMIN_TCP_SERVICES
 # 80,443 - web
 # 10050 - Zabbix Agent
 # 10161 req SNMP TLS
-ADMIN_TCP_SERVICES='80 443 10161 10050'
+ADMIN_TCP_SERVICES='80 443 10161 10050 10051'
 # ADMIN_UDP_SERVICES
 # 161 SNMP
-ADMIN_UDP_SERVICES='161'
+# 162 SNMP Traps
+ADMIN_UDP_SERVICES='161 162'
 # ADMIN_REMOTE_TCP_SERVICES
 # 10051 - Zabbix Server
 # 10162 trap SNMP TLS
@@ -243,6 +256,7 @@ ADMIN__REMOTE_UDP_SERVICES='162'
 # iperf 5001:5040
 # 10051 - Zabbix Server
 # 10162 trap SNMP TLS
+# 10000 - WEBMIN
 TCP_SERVICES='10051 10162 5001:5040'
 # UDP_SERVICE
 # iperf 5001:5040
@@ -255,14 +269,17 @@ UDP_SERVICE='162 5001:5040'
 # 389 - LDAP
 # 636 - LDAPS
 # 80, 443 - WEB
-REMOTE_TCP_SERVICES='80 443 53 389 636 6514 3306' 
+REMOTE_TCP_SERVICES='22 23 80 443 53 389 636 6514 10050 3306' 
 # REMOTE_UDP_SERVICES
 # 514 - Syslog
 # 161 - SNMP
 REMOTE_UDP_SERVICES='53 514 161'
 ;;
+#################
 full)
 SSH_PORT='22'
+TCP_SERVICES=''
+UDP_SERVICES=''
 # REMOTE SERVICES:
 # 80, 443 - web
 # 5222 - JABBER
@@ -273,10 +290,10 @@ SSH_PORT='22'
 # 636 - LDAPS
 # 8002 - icecast
 # 8394 - some radio at work ;)  http://91.121.59.45:8394/stream
-TCP_SERVICES=''
-UDP_SERVICES=''
 # 3389 - RDP
-REMOTE_TCP_SERVICES='80 443 5222 8010 53 22 3306 389 636 8002 10051 3389 8394'
+# 8006 - PROXMOX
+# 10000 - WEBMIN
+REMOTE_TCP_SERVICES='22 80 443 5222 8010 53 22 3306 389 636 8002 3389 8394 8006 10000'
 # 53 - DNS
 # 161 SNMP
 # 162 SNMP Traps
@@ -284,7 +301,6 @@ REMOTE_TCP_SERVICES='80 443 5222 8010 53 22 3306 389 636 8002 10051 3389 8394'
 REMOTE_UDP_SERVICES='53 161 162 3389'
 TORRENTS_LISTEN='8999'
 TORRENTS='52740:56850'
-
 ;;
 esac
 
@@ -332,15 +348,21 @@ $IPT -A INPUT  -p tcp  --sport 443 -m state --state ESTABLISHED     -j ACCEPT
 
 # ICMP 
 $IPT -A INPUT -p ICMP --icmp-type 8 -j LOG --log-prefix "PING: " # ECHO-REQUEST
+
 $IPT -A INPUT -p ICMP --icmp-type 8 -j ACCEPT # ECHO-REQUEST
 $IPT -A OUTPUT -p icmp --icmp-type 0 -j ACCEPT # ECHO-REPLY
 $IPT -A INPUT -p icmp --icmp-type 3 -j ACCEPT # DESTINATION UNREACHABLE
 $IPT -A INPUT -p icmp --icmp-type 11 -j ACCEPT #  TTL EXCEEDED
 $IPT -A INPUT -p icmp --icmp-type 12 -j ACCEPT # BAD IP HEADER
-$IPT -A OUTPUT -p ICMP --icmp-type 8 -j ACCEPT
-$IPT -A INPUT -p ICMP --icmp-type 0 -j ACCEPT
 
+$IPT -A OUTPUT -p ICMP --icmp-type 8 -j ACCEPT # ECHO-REQUEST
+$IPT -A INPUT -p ICMP --icmp-type 0 -j ACCEPT # ECHO-REPLY
 
+# TRACEROUTE
+$IPT -I OUTPUT -p udp --dport 33434:33524 -m state --state NEW,ESTABLISHED -j ACCEPT
+$IPT -I INPUT -p udp --sport 33434:33524 -m state --state ESTABLISHED -j ACCEPT
+$IPT -I INPUT -p udp --dport 33434:33474 -j LOG --log-prefix "TRACERT: "
+$IPT -I INPUT -p udp --dport 33434:33474 -m state --state NEW,ESTABLISHED -j ACCEPT
 
 if [ -n "$NETWORKS_MGMT" ]; then
     if [ $HOSTTYPE == "server" ]; then
