@@ -339,7 +339,8 @@ $IPT -A INPUT -p icmp --icmp-type 11 -j ACCEPT #  TTL EXCEEDED
 $IPT -A INPUT -p icmp --icmp-type 12 -j ACCEPT # BAD IP HEADER
 $IPT -A OUTPUT -p ICMP --icmp-type 8 -j ACCEPT
 $IPT -A INPUT -p ICMP --icmp-type 0 -j ACCEPT
-
+# TRACEROUTE
+$IPT -I OUTPUT -p udp --dport 33434:33474 -j ACCEPT
 
 
 if [ -n "$NETWORKS_MGMT" ]; then
