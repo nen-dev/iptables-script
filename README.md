@@ -2,6 +2,9 @@
 A simple bash script which sets up iptables for diffirent type of hosts
 
 # How to use it?
+
+Run:
+
 ``` bash
 git clone git@github.com:nen-dev/iptables-script.git
 
