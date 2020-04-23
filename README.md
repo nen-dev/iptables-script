@@ -1,6 +1,5 @@
 # iptables-script
 A simple bash script which sets up iptables for diffirent type of hosts
-Run bash iptables.setup.sh --help for more information
 
 # How to use it?
 ``` bash
@@ -11,7 +10,7 @@ Example:
 bash iptables.setup.sh -h home-pc -p standard -u users
 ```
 
-Help:
+Run bash iptables.setup.sh --help for more information
 
 ```bash
  ! But now only block ipv6 traffic
